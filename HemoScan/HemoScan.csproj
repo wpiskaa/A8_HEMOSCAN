@@ -72,6 +72,7 @@
     <Compile Include="FormStafRS.Designer.cs">
       <DependentUpon>FormStafRS.cs</DependentUpon>
     </Compile>
+    <Compile Include="DbHelper.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="FormManajer.resx">
