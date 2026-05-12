@@ -1,0 +1,74 @@
+﻿<html><head><style>
+body { font-family: Calibri, sans-serif; line-height: 1.6; }
+h1 { color: #800000; text-align: center; }
+h2 { color: #800000; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+h3 { color: #404040; }
+code { background-color: #f4f4f4; padding: 2px 5px; font-family: Consolas, monospace; }
+.box { border: 1px solid #ccc; padding: 10px; background-color: #fafafa; }
+</style></head><body>
+<h1>MODUL KOMPREHENSIF: PEMROGRAMAN APLIKASI BASIS DATA (PABD)</h1>
+<p style='text-align:center;'><strong>Studi Kasus: Sistem Manajemen Stok Darah (HemoScan)</strong><br>Disusun Untuk: Materi Persiapan Ujian Teori & Ujian Praktikum</p>
+<hr>
+
+<h2>BAB 1: TEORI DASAR RELATIONAL DATABASE (RDBMS)</h2>
+
+<h3>1.1. DDL (Data Definition Language) & DML (Data Manipulation Language)</h3>
+<p>Dalam SQL, perintah dibagi menjadi kategori berdasarkan tujuannya:</p>
+<ul>
+<li><strong>DDL (Mendefinisikan Struktur):</strong> <code>CREATE</code> (membuat tabel/database), <code>ALTER</code> (mengubah struktur tabel), <code>DROP</code> (menghapus tabel/database). Di HemoScan, DDL digunakan di file <code>query_hemoscan.sql</code> saat mendefinisikan tabel.</li>
+<li><strong>DML (Memanipulasi Data):</strong> <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code>, dan <code>SELECT</code>. Di HemoScan, DML dieksekusi dari dalam kode C# (ADO.NET).</li>
+</ul>
+
+<h3>1.2. Normalisasi Basis Data (Mencapai 3NF)</h3>
+<p>Desain database HemoScan telah memenuhi kaidah Normalisasi tingkat 3 (3NF):</p>
+<ol>
+<li><strong>1NF:</strong> Tidak ada grup berulang atau kolom <i>multivalue</i>. Setiap sel berisi satu nilai (misal: Rhesus dipisah dari Golongan Darah).</li>
+<li><strong>2NF:</strong> Sudah memiliki <i>Primary Key</i> yang absolut (<code>ID_Kantong</code>), dan tidak ada ketergantungan parsial.</li>
+<li><strong>3NF:</strong> Tidak ada atribut yang bergantung pada atribut non-kunci lainnya (Ketergantungan Transitif). Nama Unit Medis dan Alamat tidak ditaruh di <code>Tabel_Kantong_Darah</code>, melainkan dipisah ke <code>Tabel_Unit_Medis</code> lalu dihubungkan dengan <i>Foreign Key</i>.</li>
+</ol>
+
+<h3>1.3. Integritas Data (Data Integrity)</h3>
+<p>PABD mewajibkan data tetap konsisten dan valid. HemoScan menerapkan 3 jenis integritas:</p>
+<ul>
+<li><strong>Entity Integrity:</strong> Diterapkan melalui <code>PRIMARY KEY</code>. Menjamin tidak ada dua baris yang memiliki ID yang sama persis dan ID tidak boleh <code>NULL</code>.</li>
+<li><strong>Referential Integrity:</strong> Diterapkan melalui <code>FOREIGN KEY</code>. Contoh: <code>ID_Unit</code> di <code>Tabel_Kantong_Darah</code> harus merujuk ke <code>ID_Unit</code> yang benar-benar ada di <code>Tabel_Unit_Medis</code>.</li>
+<li><strong>Domain Integrity:</strong> Diterapkan melalui <code>CHECK Constraint</code>. Contoh: <code>CHECK (Gol_Darah IN ('A', 'B', 'AB', 'O'))</code>. Ini mencegah human error.</li>
+</ul>
+
+<h3>1.4. Operasi JOIN & Agregasi</h3>
+<p>Untuk menampilkan informasi yang ramah manusia (menampilkan "RS Bethesda", bukan ID "2"), kita menggunakan <strong>INNER JOIN</strong>, yang hanya menampilkan baris yang memiliki pasangan di kedua tabel.</p>
+<p>HemoScan juga menggunakan fungsi agregasi SQL untuk dashboard: <code>COUNT(*)</code> untuk menghitung jumlah total stok, dan <code>GROUP BY</code> untuk mengelompokkan stok berdasarkan golongan darah.</p>
+
+<h2>BAB 2: TEORI ADO.NET (KONEKSI C# KE SQL SERVER)</h2>
+
+<h3>2.1. Connected vs Disconnected Architecture</h3>
+<ul>
+<li><strong>Connected (SqlDataReader):</strong> Sangat cepat, efisien memori, bersifat <i>Forward-Only</i>. Cocok untuk mengecek login pengguna.</li>
+<li><strong>Disconnected (SqlDataAdapter + DataTable):</strong> Data diambil ke memori (RAM), lalu koneksi diputus. Cocok untuk ditampilkan di <code>DataGridView</code>.</li>
+</ul>
+
+<h3>2.2. Eksekusi Perintah (The 3 Execution Methods)</h3>
+<ol>
+<li><strong><code>ExecuteNonQuery()</code></strong>: Untuk DML modifikasi data (<code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code>). Mengembalikan jumlah baris yang terpengaruh.</li>
+<li><strong><code>ExecuteScalar()</code></strong>: Untuk mengambil persis SATU Niai tunggal (1 Baris, 1 Kolom), seperti <code>SELECT COUNT(*)</code>.</li>
+<li><strong><code>ExecuteReader()</code></strong>: Untuk query <code>SELECT</code> yang menghasilkan banyak baris data.</li>
+</ol>
+
+<h3>2.3. Keamanan ADO.NET (Parameterized Query)</h3>
+<p>Untuk mencegah <strong>SQL Injection</strong>, kita WAJIB menggunakan <code>cmd.Parameters.AddWithValue</code>. Ini membuat database memperlakukan input pengguna secara murni sebagai "teks data", bukan sebagai perintah SQL jahat.</p>
+
+<h2>BAB 3: BEDAH ALGORITMA HEMOSCAN (CHANGELOG TERBARU)</h2>
+
+<h3>3.1. Algoritma Pemrosesan Request (Integrasi Stok dan Transaksi)</h3>
+<p>Ini adalah "Jantung" dari integritas bisnis aplikasi. Saat PMI memproses Request, aplikasi TIDAK HANYA mengubah status Request. Alur logikanya adalah:</p>
+<div class='box'>
+1. <strong>Pemisahan String:</strong> Memecah input "A+" menjadi Golongan "A" dan Rhesus "+".<br>
+2. <strong>Validasi Ketersediaan:</strong> Mengeksekusi <code>SELECT TOP 1 ID_Kantong FROM Tabel_Kantong_Darah WHERE Gol_Darah = 'A' AND Rhesus = '+' AND Status = 'Tersedia'</code>.<br>
+3. <strong>Pengecekan:</strong> Jika stok kosong, batalkan proses.<br>
+4. <strong>Update Stok Fisik:</strong> Ubah <code>Status = 'Dikirim'</code> HANYA untuk 1 ID_Kantong tersebut.<br>
+5. <strong>Update Request:</strong> Ubah status request menjadi 'Dikirim'.
+</div>
+
+<h3>3.2. Pencegahan Anomali Modifikasi (UI/UX Lock)</h3>
+<p>Di form Admin PMI, jika kita memilih kantong darah yang statusnya sudah 'Dikirim', tombol Update dan Hapus akan otomatis mati (Disabled). Barang yang sudah dikirim secara fisik tidak boleh diedit atau dihapus secara sepihak untuk menjaga jejak audit medis.</p>
+</body></html>
