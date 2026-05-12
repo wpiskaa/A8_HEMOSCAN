@@ -1,159 +1,217 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
+using System;
 using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Data.SqlClient;
-
 
 namespace HemoScan
 {
     public partial class FormStafRS : Form
     {
-        SqlConnection conn;
-        string connectionString = "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=HEMOSCAN;Integrated Security=True";
+        // Koneksi terpusat via DbHelper
+        SqlConnection conn = DbHelper.GetConnection();
+
+        // ID Unit RS yang login (default RS Bethesda = ID 2)
+        private int    idUnitSaya   = 2;
+        private string namaRSSaya   = "RS Bethesda Yogyakarta";
+
+        // ============================================================
+        // MODUL 8: Deklarasi DataSet, DataAdapter, BindingSource
+        // ============================================================
+        private SqlDataAdapter adapterStok;   // Modul 8: DataAdapter
+        private DataSet        dsStok;        // Modul 8: DataSet (cache lokal)
+        private BindingSource  bsStok;        // Modul 8: BindingSource penghubung UI-DataSet
 
         public FormStafRS()
         {
             InitializeComponent();
-            conn = new SqlConnection(connectionString);
+            // Modul 8: Inisialisasi DataSet dan BindingSource
+            dsStok = new DataSet();
+            bsStok = new BindingSource();
         }
 
-        // --- FUNGSI UTAMA UNTUK TAMPIL DATA ---
-        private void TampilData(string queryCustom = "")
+        // ============================================================
+        // FORM LOAD
+        // ============================================================
+        private void FormStafRS_Load(object sender, EventArgs e)
+        {
+            this.Text = "HemoScan - Dashboard Staf RS: " + namaRSSaya;
+            cmbCariGol.Items.AddRange(new string[] { "Semua", "A", "B", "AB", "O" });
+            cmbCariGol.SelectedIndex = 0;
+            cmbCariRhesus.Items.AddRange(new string[] { "Semua", "+", "-" });
+            cmbCariRhesus.SelectedIndex = 0;
+
+            // Modul 8: Load data via DataAdapter + DataSet
+            LoadDataStokViaAdapter("Semua", "Semua");
+        }
+
+        // ============================================================
+        // MODUL 8: Load Data Stok via SqlDataAdapter (Disconnected)
+        // MODUL 10: Gunakan Stored Procedure sp_CariStokDarah
+        // ============================================================
+        private void LoadDataStokViaAdapter(string filterGol = "Semua", string filterRhesus = "Semua")
+        {
+            try
+            {
+                // Modul 10: Gunakan SP sebagai sumber data untuk DataAdapter
+                SqlCommand cmd = new SqlCommand("sp_CariStokDarah", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@Gol_Darah", filterGol);
+                cmd.Parameters.AddWithValue("@Rhesus",    filterRhesus);
+
+                // Modul 8: Buat DataAdapter dari perintah SP
+                adapterStok = new SqlDataAdapter(cmd);
+
+                // Modul 8: method Fill() — mengisi DataSet secara disconnected
+                if (dsStok.Tables.Contains("Stok")) dsStok.Tables.Remove("Stok");
+                adapterStok.Fill(dsStok, "Stok");
+
+                // Modul 8: Hubungkan BindingSource ke DataTable dalam DataSet
+                bsStok.DataSource = dsStok.Tables["Stok"];
+
+                // Modul 8: DataGridView terhubung ke BindingSource (bukan langsung DataTable)
+                dgvDarah.DataSource = bsStok;
+
+                // Hitung total stok dengan SP OUTPUT parameter (Modul 10)
+                UpdateLabelStok_SP();
+
+                // Warnai stok kritis (logika UI)
+                WarnaiStokKritis();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Gagal memuat data: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ============================================================
+        // MODUL 10: Update label jumlah stok via SP dengan OUTPUT parameter
+        // ============================================================
+        private void UpdateLabelStok_SP()
         {
             try
             {
                 if (conn.State == ConnectionState.Closed) conn.Open();
 
-                // Gunakan query default jika tidak ada pencarian
-                string query = string.IsNullOrEmpty(queryCustom) ?
-                               "SELECT * FROM Tabel_Kantong_Darah" : queryCustom;
+                SqlCommand cmd = new SqlCommand("sp_CountStokTersedia", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
 
-                SqlDataAdapter da = new SqlDataAdapter(query, conn);
-                if (!string.IsNullOrEmpty(queryCustom))
+                // Modul 10: Parameter OUTPUT
+                SqlParameter paramOut = new SqlParameter("@TotalStok", SqlDbType.Int);
+                paramOut.Direction = ParameterDirection.Output;
+                cmd.Parameters.Add(paramOut);
+
+                cmd.ExecuteNonQuery();
+
+                int total = (int)cmd.Parameters["@TotalStok"].Value;
+                lblStatus.Text = "Total Stok Darah Tersedia: " + total + " kantong";
+            }
+            catch { }
+            finally
+            {
+                if (conn.State == ConnectionState.Open) conn.Close();
+            }
+        }
+
+        // ============================================================
+        // WARNAI STOK KRITIS — hitung dari DataSet (Modul 8)
+        // ============================================================
+        private void WarnaiStokKritis()
+        {
+            if (dsStok.Tables["Stok"] == null) return;
+
+            foreach (DataGridViewRow row in dgvDarah.Rows)
+            {
+                if (row.Cells["Gol_Darah"].Value == null) continue;
+                string gol = row.Cells["Gol_Darah"].Value.ToString();
+
+                // Modul 8: Gunakan DataTable.Select() dari DataSet (bukan query ulang ke DB)
+                DataRow[] hasil = dsStok.Tables["Stok"].Select("Gol_Darah = '" + gol + "'");
+                if (hasil.Length < 3)
                 {
-                    // Jika ini hasil pencarian, kita perlu pakai SqlCommand untuk parameter
-                    SqlCommand cmd = new SqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@search", "%" + txtCari.Text + "%");
-                    da.SelectCommand = cmd;
+                    row.DefaultCellStyle.BackColor = Color.OrangeRed;
+                    row.DefaultCellStyle.ForeColor = Color.White;
                 }
+                else
+                {
+                    row.DefaultCellStyle.BackColor = Color.White;
+                    row.DefaultCellStyle.ForeColor = Color.Black;
+                }
+            }
+        }
 
-                DataTable dt = new DataTable();
-                da.Fill(dt);
-                dgvDarah.DataSource = dt;
+        // ============================================================
+        // TOMBOL CARI — filter via SP (Modul 10) + DataSet (Modul 8)
+        // ============================================================
+        private void btnCari_Click(object sender, EventArgs e)
+        {
+            LoadDataStokViaAdapter(cmbCariGol.Text, cmbCariRhesus.Text);
+        }
 
-                // --- HITUNG TOTAL STOK ---
-                string countQuery = "SELECT COUNT(*) FROM Tabel_Kantong_Darah";
-                SqlCommand cmdCount = new SqlCommand(countQuery, conn);
-                int total = (int)cmdCount.ExecuteScalar();
-                lblStatus.Text = "Total Stok Darah: " + total;
+        // ============================================================
+        // TOMBOL REQUEST DARAH — INSERT via Stored Procedure (Modul 10)
+        // sp_InsertRequest — SP INSERT dengan parameter input
+        // ============================================================
+        private void btnRequest_Click(object sender, EventArgs e)
+        {
+            if (dgvDarah.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Silakan pilih baris golongan darah yang ingin di-request!",
+                    "Peringatan", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
-                // --- WARNAI STOK KRITIS ---
-                WarnaiStokKritis();
+            string golDarah  = dgvDarah.SelectedRows[0].Cells["Gol_Darah"].Value?.ToString();
+            string rhesus    = dgvDarah.SelectedRows[0].Cells["Rhesus"].Value?.ToString();
+            string golLengkap = golDarah + rhesus;
+
+            DialogResult konfirmasi = MessageBox.Show(
+                $"Kirim permintaan darah golongan '{golLengkap}' dari {namaRSSaya} ke PMI?",
+                "Konfirmasi Request", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (konfirmasi == DialogResult.No) return;
+
+            try
+            {
+                if (conn.State == ConnectionState.Closed) conn.Open();
+
+                // Modul 10: Panggil SP INSERT request
+                SqlCommand cmd = new SqlCommand("sp_InsertRequest", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@Golongan_Darah",  golLengkap);
+                cmd.Parameters.AddWithValue("@ID_Unit_Peminta", idUnitSaya);
+                cmd.ExecuteNonQuery();
+
+                MessageBox.Show(
+                    $"Request darah '{golLengkap}' dari {namaRSSaya} berhasil dikirim ke PMI!\nTunggu proses dari pihak PMI.",
+                    "Request Berhasil", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error: " + ex.Message);
+                MessageBox.Show("Gagal mengirim request: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
-                conn.Close();
+                if (conn.State == ConnectionState.Open) conn.Close();
             }
         }
 
-        private void WarnaiStokKritis()
+        // ============================================================
+        // TOMBOL LOGOUT
+        // ============================================================
+        private void btnLogout_Click(object sender, EventArgs e)
         {
-            foreach (DataGridViewRow row in dgvDarah.Rows)
+            DialogResult konfirmasi = MessageBox.Show(
+                "Yakin ingin logout?", "Konfirmasi Logout",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (konfirmasi == DialogResult.Yes)
             {
-                if (row.Cells["Gol_Darah"].Value != null)
-                {
-                    string gol = row.Cells["Gol_Darah"].Value.ToString();
-
-                    // Hitung jumlah stok untuk golongan darah tersebut di Grid
-                    int count = dgvDarah.Rows.Cast<DataGridViewRow>()
-                        .Count(r => r.Cells["Gol_Darah"].Value?.ToString() == gol);
-
-                    if (count < 3)
-                    {
-                        row.DefaultCellStyle.BackColor = Color.Orange;
-                        row.DefaultCellStyle.ForeColor = Color.Black;
-                    }
-                }
+                if (conn.State == ConnectionState.Open) conn.Close();
+                this.Close();
             }
-        }
-
-        private void FormStafRS_Load(object sender, EventArgs e)
-        {
-            TampilData();
-        }
-
-        private void btnCari_Click(object sender, EventArgs e)
-        {
-            // Panggil TampilData dengan filter pencarian
-            TampilData("SELECT * FROM Tabel_Kantong_Darah WHERE Gol_Darah LIKE @search");
-        }
-
-        // --- FITUR REQUEST DARAH (YANG BELUM ADA DI KODE KAMU) ---
-        private void btnRequest_Click(object sender, EventArgs e)
-        {
-            if (dgvDarah.SelectedRows.Count > 0)
-            {
-                string golDarah = dgvDarah.SelectedRows[0].Cells["Gol_Darah"].Value.ToString();
-
-                try
-                {
-                    if (conn.State == ConnectionState.Closed) conn.Open();
-                    string query = "INSERT INTO Tabel_Request (Golongan_Darah, Status_Permintaan, Tanggal_Request) " +
-                                   "VALUES (@gol, 'Pending', GETDATE())";
-                    SqlCommand cmd = new SqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@gol", golDarah);
-                    cmd.ExecuteNonQuery();
-
-                    MessageBox.Show("Request Darah " + golDarah + " berhasil dikirim!", "Informasi");
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Gagal kirim request: " + ex.Message);
-                }
-                finally
-                {
-                    conn.Close();
-                }
-            }
-            else
-            {
-                MessageBox.Show("Silakan pilih baris data darah yang ingin di-request!");
-            }
-        }
-
-        private void label1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void groupBox1_Enter(object sender, EventArgs e)
-        {
-
-        }
-
-        private void textBox1_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void FormStafMedis_Load_1(object sender, EventArgs e)
-        {
-
         }
     }
 }
