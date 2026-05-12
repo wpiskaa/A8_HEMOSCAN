@@ -1,89 +1,120 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+using System;
 using System.Data;
-using System.Drawing;
-using System.Diagnostics;
 using System.Windows.Forms;
-using System.Linq;
 using System.Data.SqlClient;
 
 namespace HemoScan
 {
     public partial class FormManajer : Form
     {
-        // 1. Deklarasi Koneksi (Sesuaikan Initial Catalog dengan nama database kamu)
-        SqlConnection conn = new SqlConnection(@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=HEMOSCAN;Integrated Security=True");
+        // Koneksi terpusat
+        SqlConnection conn = DbHelper.GetConnection();
+
+        // ============================================================
+        // MODUL 8: Deklarasi DataSet dan DataAdapter
+        // ============================================================
+        private SqlDataAdapter adapterLaporan;  // Modul 8: DataAdapter laporan
+        private DataSet        dsLaporan;       // Modul 8: DataSet sebagai cache lokal
 
         public FormManajer()
         {
             InitializeComponent();
+            // Modul 8: Inisialisasi DataSet
+            dsLaporan = new DataSet();
         }
 
-        // 2. Event saat Form dibuka
+        // ============================================================
+        // FORM LOAD
+        // ============================================================
         private void FormManajer_Load(object sender, EventArgs e)
         {
+            this.Text = "HemoScan - Dashboard Manajer";
             TampilkanLaporan();
         }
 
-        // 3. Fungsi Utama untuk Menarik Data dan Statistik
+        // ============================================================
+        // MODUL 8 + MODUL 10: Tampilkan Laporan
+        //   - DataSet & DataAdapter (Modul 8)
+        //   - Stored Procedure (Modul 10)
+        //   - SP dengan OUTPUT parameter (Modul 10)
+        // ============================================================
         private void TampilkanLaporan()
         {
             try
             {
-                // Pastikan koneksi terbuka
+                // ---- A. Grid Laporan via SP + DataSet (Modul 8 & 10) ----
+                SqlCommand cmdLaporan = new SqlCommand("sp_GetLaporanPermintaan", conn);
+                cmdLaporan.CommandType = CommandType.StoredProcedure;
+
+                // Modul 8: DataAdapter mengisi DataSet secara disconnected
+                adapterLaporan = new SqlDataAdapter(cmdLaporan);
+                if (dsLaporan.Tables.Contains("Laporan")) dsLaporan.Tables.Remove("Laporan");
+                adapterLaporan.Fill(dsLaporan, "Laporan");
+                dgvLaporan.DataSource = dsLaporan.Tables["Laporan"];
+
+                // ---- B. Hitung Permintaan Pending via SP OUTPUT (Modul 10) ----
                 if (conn.State == ConnectionState.Closed) conn.Open();
 
-                // A. Menampilkan seluruh data request ke DataGridView (dgvLaporan)
-                // Mengurutkan dari yang terbaru (DESC)
-                string queryGrid = "SELECT ID_Request, Golongan_Darah, Status_Permintaan, Tanggal_Request, Nama_RS FROM Tabel_Request ORDER BY Tanggal_Request DESC";
-                SqlDataAdapter da = new SqlDataAdapter(queryGrid, conn);
-                DataTable dt = new DataTable();
-                da.Fill(dt);
+                SqlCommand cmdPending = new SqlCommand("sp_CountRequestPending", conn);
+                cmdPending.CommandType = CommandType.StoredProcedure;
 
-                // Ganti 'dgvLaporan' sesuai dengan nama (Name) DataGridView di Design kamu
-                dgvLaporan.DataSource = dt;
+                // Modul 10: Parameter OUTPUT
+                SqlParameter pPending = new SqlParameter("@TotalPending", SqlDbType.Int);
+                pPending.Direction = ParameterDirection.Output;
+                cmdPending.Parameters.Add(pPending);
+                cmdPending.ExecuteNonQuery();
 
-                // B. Hitung Statistik Permintaan yang masih 'Pending'
-                string queryPending = "SELECT COUNT(*) FROM Tabel_Request WHERE Status_Permintaan = 'Pending'";
-                SqlCommand cmdPending = new SqlCommand(queryPending, conn);
-                int countPending = (int)cmdPending.ExecuteScalar();
+                int countPending = (int)cmdPending.Parameters["@TotalPending"].Value;
+                lblPermintaan.Text = countPending.ToString();
 
-                // Tampilkan ke label (Ganti 'lblPermintaan' sesuai nama label di Design)
-                lblPermintaan.Text = "Permintaan Menunggu: " + countPending.ToString();
+                // ---- C. Hitung Total Stok via SP OUTPUT (Modul 10) ----
+                SqlCommand cmdStok = new SqlCommand("sp_CountStokTersedia", conn);
+                cmdStok.CommandType = CommandType.StoredProcedure;
 
-                // C. Hitung Total Stok Darah Global (PMI)
-                string queryStok = "SELECT COUNT(*) FROM Tabel_Kantong_Darah";
-                SqlCommand cmdStok = new SqlCommand(queryStok, conn);
-                int totalStok = (int)cmdStok.ExecuteScalar();
+                // Modul 10: Parameter OUTPUT
+                SqlParameter pStok = new SqlParameter("@TotalStok", SqlDbType.Int);
+                pStok.Direction = ParameterDirection.Output;
+                cmdStok.Parameters.Add(pStok);
+                cmdStok.ExecuteNonQuery();
 
-                // Tampilkan ke label (Ganti 'lblTotalStok' sesuai nama label di Design)
-                lblTotalStok.Text = "Total Stok Global: " + totalStok.ToString();
-
+                int totalStok = (int)cmdStok.Parameters["@TotalStok"].Value;
+                lblTotalStok.Text = totalStok + " kantong";
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Gagal memuat laporan manajer: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Gagal memuat laporan: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
-                conn.Close();
+                if (conn.State == ConnectionState.Open) conn.Close();
             }
         }
 
-        // 4. Event Tombol Refresh Data
+        // ============================================================
+        // TOMBOL REFRESH
+        // ============================================================
         private void btnRefresh_Click(object sender, EventArgs e)
         {
             TampilkanLaporan();
-            MessageBox.Show("Data Berhasil Diperbarui!", "Informasi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("Data laporan berhasil diperbarui!", "Informasi",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // Tambahan: Jika ingin menutup aplikasi atau logout
+        // ============================================================
+        // TOMBOL LOGOUT
+        // ============================================================
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            FormLogin login = new FormLogin();
-            login.Show();
-            this.Close();
+            DialogResult konfirmasi = MessageBox.Show(
+                "Yakin ingin logout?", "Konfirmasi Logout",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (konfirmasi == DialogResult.Yes)
+            {
+                if (conn.State == ConnectionState.Open) conn.Close();
+                this.Close();
+            }
         }
     }
 }
