@@ -1,11 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
+using System;
 using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Data.SqlClient;
 
@@ -13,12 +7,34 @@ namespace HemoScan
 {
     public partial class FormLogin : Form
     {
-        SqlConnection conn = new SqlConnection(
-            @"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=HEMOSCAN;Integrated Security=True");
+        // Koneksi terpusat — didapat dari DbHelper agar tidak hardcode di tiap form
+        SqlConnection conn = new SqlConnection(DbHelper.ConnString);
 
         public FormLogin()
         {
             InitializeComponent();
+        }
+
+        // Event saat form pertama kali dibuka
+        private void FormLogin_Load(object sender, EventArgs e)
+        {
+            // BUKTI POIN B: Tes koneksi otomatis dilakukan saat aplikasi pertama kali berjalan
+            try
+            {
+                conn.Open();
+                // Koneksi berhasil → langsung tutup, tidak perlu dibiarkan terbuka saat login
+                conn.Close();
+                MessageBox.Show("Koneksi Database HEMOSCAN Berhasil!",
+                    "Status Koneksi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Koneksi Database Gagal!\n\nDetail: " + ex.Message,
+                    "Error Koneksi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            // Set fokus ke field username agar user langsung bisa mengetik
+            txtUsername.Focus();
         }
 
         private void btnLogin_Click(object sender, EventArgs e)
@@ -26,6 +42,7 @@ namespace HemoScan
             string username = txtUsername.Text.Trim();
             string password = txtPassword.Text.Trim();
 
+            // Validasi input tidak boleh kosong
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             {
                 MessageBox.Show("Username dan password tidak boleh kosong!", "Peringatan",
@@ -38,7 +55,7 @@ namespace HemoScan
                 if (conn.State == ConnectionState.Closed)
                     conn.Open();
 
-                // Query sudah benar
+                // Query parameterisasi — aman dari SQL Injection
                 string query = "SELECT Role FROM Tabel_User WHERE Username=@user AND Password=@pass";
                 SqlCommand cmd = new SqlCommand(query, conn);
                 cmd.Parameters.AddWithValue("@user", username);
@@ -50,16 +67,18 @@ namespace HemoScan
                 {
                     MessageBox.Show("Username atau password salah!", "Login Gagal",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    txtPassword.Clear();
+                    txtUsername.Focus();
                     return;
                 }
 
-                // Gunakan .ToLower() agar switch case tidak error karena beda huruf besar/kecil
+                // Gunakan ToLower() agar perbandingan tidak case-sensitive
                 string role = result.ToString().ToLower();
                 this.Hide();
 
                 switch (role)
                 {
-                    case "adminpmi": // Huruf kecil semua agar konsisten dengan .ToLower()
+                    case "adminpmi":
                         FormAdminPMI adminForm = new FormAdminPMI();
                         adminForm.FormClosed += (s, args) => this.Show();
                         adminForm.Show();
@@ -96,17 +115,16 @@ namespace HemoScan
             }
         }
 
+        // Tekan Enter di field password → langsung login
         private void txtPassword_KeyDown(object sender, KeyEventArgs e)
         {
-            // Fitur enter untuk login sudah benar
             if (e.KeyCode == Keys.Enter)
                 btnLogin_Click(sender, new EventArgs());
         }
 
-        // Tambahan: Agar user tidak perlu klik textbox saat form muncul
-        private void FormLogin_Load(object sender, EventArgs e)
+        private void lblCopyright_Click(object sender, EventArgs e)
         {
-            txtUsername.Focus();
+
         }
     }
 }
