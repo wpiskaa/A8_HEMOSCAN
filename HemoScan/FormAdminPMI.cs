@@ -1,11 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
+using System;
 using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Data.SqlClient;
 
@@ -13,187 +7,563 @@ namespace HemoScan
 {
     public partial class FormAdminPMI : Form
     {
-        // Deklarasikan variabel koneksi di sini
-        SqlConnection conn = new SqlConnection(@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=HEMOSCAN;Integrated Security=True");
+        // ============================================================
+        // MODUL 8: DataSet & DataAdapter — Disconnected Architecture
+        // Deklarasi SqlDataAdapter dan DataSet di level class
+        // agar bisa digunakan oleh BindingNavigator dan BindingSource
+        // ============================================================
+        private SqlDataAdapter  adapterStok;          // Modul 8: DataAdapter stok darah
+        private DataSet         dsHemoScan;           // Modul 8: DataSet (cache data lokal)
+        private BindingSource   bsStok;               // Modul 8: BindingSource penghubung UI–DataSet
+
+        // Koneksi terpusat via DbHelper
+        SqlConnection conn = DbHelper.GetConnection();
 
         public FormAdminPMI()
         {
             InitializeComponent();
+            // Modul 8: inisialisasi objek DataSet dan BindingSource
+            dsHemoScan = new DataSet();
+            bsStok     = new BindingSource();
         }
+
+        // ============================================================
+        // FORM LOAD
+        // ============================================================
+        private void FormAdminPMI_Load(object sender, EventArgs e)
+        {
+            cmbGol.Items.AddRange(new string[] { "A", "B", "AB", "O" });
+            cmbGol.SelectedIndex = 0;
+            cmbCariGol.Items.AddRange(new string[] { "Semua", "A", "B", "AB", "O" });
+            cmbCariGol.SelectedIndex = 0;
+            cmbCariRhesus.Items.AddRange(new string[] { "Semua", "+", "-" });
+            cmbCariRhesus.SelectedIndex = 0;
+
+            // Modul 8: Hubungkan BindingNavigator ke BindingSource
+            if (bindingNavigatorStok != null)
+                bindingNavigatorStok.BindingSource = bsStok;
+
+            // Muat data pertama kali menggunakan DataAdapter (Modul 8)
+            LoadDataStokViaAdapter();
+            TampilRequestMasuk_SP();   // Modul 10: via Stored Procedure
+            UpdateTotalStok_SP();      // Modul 10: via SP dengan OUTPUT parameter
+        }
+
+        // ============================================================
+        // MODUL 8: Load Data Stok via SqlDataAdapter + DataSet + BindingSource
+        // Method Fill() mengisi DataSet secara disconnected
+        // ============================================================
+        private void LoadDataStokViaAdapter()
+        {
+            try
+            {
+                // Modul 8: Buat SqlDataAdapter dengan query JOIN
+                string query = @"
+                    SELECT 
+                        K.ID_Kantong, K.Gol_Darah, K.Rhesus,
+                        K.Tgl_Kadaluwarsa, K.Status,
+                        U.Nama_Unit AS [Unit PMI]
+                    FROM Tabel_Kantong_Darah K
+                    INNER JOIN Tabel_Unit_Medis U ON K.ID_Unit = U.ID_Unit
+                    ORDER BY K.ID_Kantong";
+
+                adapterStok = new SqlDataAdapter(query, conn);
+
+                // Modul 8: method Fill() — isi DataSet tanpa koneksi terbuka terus
+                if (dsHemoScan.Tables.Contains("Stok")) dsHemoScan.Tables.Remove("Stok");
+                adapterStok.Fill(dsHemoScan, "Stok");
+
+                // Modul 8: Hubungkan BindingSource ke DataTable dalam DataSet
+                bsStok.DataSource = dsHemoScan.Tables["Stok"];
+
+                // Modul 8: Hubungkan DataGridView ke BindingSource (bukan langsung ke DataTable)
+                dgvDarah.DataSource = bsStok;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Gagal load data stok: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ============================================================
+        // MODUL 10: Tampil Request Masuk via Stored Procedure
+        // sp_GetRequestPending — SP SELECT dengan JOIN
+        // ============================================================
+        private void TampilRequestMasuk_SP()
+        {
+            try
+            {
+                if (conn.State == ConnectionState.Closed) conn.Open();
+
+                // Modul 10: Panggil SP menggunakan CommandType.StoredProcedure
+                SqlCommand cmd = new SqlCommand("sp_GetRequestPending", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+
+                SqlDataAdapter da = new SqlDataAdapter(cmd);
+                DataTable dt = new DataTable();
+                da.Fill(dt);
+                dgvRequestAdmin.DataSource = dt;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Gagal memuat request: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (conn.State == ConnectionState.Open) conn.Close();
+            }
+        }
+
+        // ============================================================
+        // MODUL 10: Update Label Total Stok via SP dengan OUTPUT Parameter
+        // sp_CountStokTersedia — SP dengan parameter OUTPUT
+        // ============================================================
+        private void UpdateTotalStok_SP()
+        {
+            try
+            {
+                if (conn.State == ConnectionState.Closed) conn.Open();
+
+                // Modul 10: SP dengan OUTPUT parameter
+                SqlCommand cmd = new SqlCommand("sp_CountStokTersedia", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+
+                // Modul 10: Tambahkan parameter OUTPUT
+                SqlParameter paramOut = new SqlParameter("@TotalStok", SqlDbType.Int);
+                paramOut.Direction = ParameterDirection.Output;
+                cmd.Parameters.Add(paramOut);
+
+                cmd.ExecuteNonQuery();
+
+                // Modul 10: Baca nilai OUTPUT parameter setelah eksekusi
+                int total = (int)cmd.Parameters["@TotalStok"].Value;
+                lblStatus.Text = "Total Stok Kantong Tersedia: " + total;
+            }
+            catch { /* Biarkan label tidak berubah jika error */ }
+            finally
+            {
+                if (conn.State == ConnectionState.Open) conn.Close();
+            }
+        }
+
+        // ============================================================
+        // TOMBOL TAMPILKAN — Refresh semua data
+        // ============================================================
         private void btnTampil_Click(object sender, EventArgs e)
         {
-            try
-            {
-                if (conn.State == ConnectionState.Closed)
-                    conn.Open();
-
-                string query = "SELECT * FROM Tabel_Kantong_Darah";
-                SqlCommand cmd = new SqlCommand(query, conn);
-
-                SqlDataReader reader = cmd.ExecuteReader();
-
-                DataTable dt = new DataTable();
-                dt.Load(reader); // 🔥 ini kunci biar masuk ke DataGridView
-
-                dgvDarah.DataSource = dt;
-
-                reader.Close(); // WAJIB ditutup
-
-                // 🔥 hitung total
-                string countQuery = "SELECT COUNT(*) FROM Tabel_Kantong_Darah";
-                SqlCommand cmdCount = new SqlCommand(countQuery, conn);
-                int total = (int)cmdCount.ExecuteScalar();
-
-                lblStatus.Text = "Total Stok Kantong: " + total;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Gagal tampil data: " + ex.Message);
-            }
-            TampilDataStok();      // Mengisi tabel stok (bawah)
-            TampilRequestMasuk();  // Mengisi tabel request (kanan)
-            UpdateTotalStok();     // Memperbarui angka total stok
+            LoadDataStokViaAdapter();   // Modul 8: refresh via DataAdapter
+            TampilRequestMasuk_SP();   // Modul 10: via SP
+            UpdateTotalStok_SP();      // Modul 10: via SP OUTPUT
         }
 
-
+        // ============================================================
+        // TOMBOL SIMPAN (INSERT) via Stored Procedure — Modul 10
+        // ============================================================
         private void btnSimpan_Click(object sender, EventArgs e)
         {
-            try
+            if (string.IsNullOrWhiteSpace(cmbRhesus.Text))
             {
-                if (conn.State == ConnectionState.Closed)
-                    conn.Open();
-
-                string query = "INSERT INTO Tabel_Kantong_Darah (Gol_Darah, Rhesus, Tgl_Kadaluwarsa, Status, ID_Unit) VALUES (@gol, @rhesus, GETDATE(), 'Tersedia', 1)";
-
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@gol", cmbGol.Text);
-                cmd.Parameters.AddWithValue("@rhesus", txtRhesus.Text);
-
-                cmd.ExecuteNonQuery();
-
-                MessageBox.Show("Data berhasil disimpan!");
-
-                btnTampil_Click(null, null); // refresh data
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Gagal simpan: " + ex.Message);
-            }
-            // Tambahkan validasi ini di paling atas
-            if (string.IsNullOrEmpty(txtRhesus.Text))
-            {
-                MessageBox.Show("Field Rhesus tidak boleh kosong!");
+                MessageBox.Show("Field Rhesus tidak boleh kosong!", "Validasi Gagal",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                cmbRhesus.Focus();
                 return;
             }
-            TampilRequestMasuk();
-            // ... sisa kode kamu ...
-        }
+            if (string.IsNullOrWhiteSpace(cmbGol.Text))
+            {
+                MessageBox.Show("Golongan darah harus dipilih!", "Validasi Gagal",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
-
-        private void btnHapus_Click(object sender, EventArgs e)
-{
-    try
-    {
-        if (txtID.Text == "")
-        {
-            MessageBox.Show("Pilih data terlebih dahulu!");
-            return;
-        }
-
-        DialogResult result = MessageBox.Show(
-            "Yakin ingin menghapus data ini?",
-            "Konfirmasi Hapus",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Warning
-        );
-
-        if (result == DialogResult.No)
-        {
-            return;
-        }
-
-        if (conn.State == ConnectionState.Closed)
-            conn.Open();
-
-        string query = "DELETE FROM Tabel_Kantong_Darah WHERE ID_Kantong = @id";
-
-        SqlCommand cmd = new SqlCommand(query, conn);
-        cmd.Parameters.AddWithValue("@id", txtID.Text);
-
-        cmd.ExecuteNonQuery();
-
-        MessageBox.Show("Data berhasil dihapus!");
-
-        // refresh data
-        btnTampil_Click(null, null);
-
-        // bersihkan form
-        txtID.Clear();
-        txtRhesus.Clear();
-        cmbGol.SelectedIndex = 0;
-    }
-    catch (Exception ex)
-    {
-        MessageBox.Show("Gagal hapus: " + ex.Message);
-    }
-}
-
-        private void btnUpdate_Click(object sender, EventArgs e)
-        {
             try
             {
-                if (conn.State == ConnectionState.Closed)
-                    conn.Open();
+                if (conn.State == ConnectionState.Closed) conn.Open();
 
-                string query = "UPDATE Tabel_Kantong_Darah SET Gol_Darah=@gol, Rhesus=@rhesus WHERE ID_Kantong=@id";
-
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@gol", cmbGol.Text);
-                cmd.Parameters.AddWithValue("@rhesus", txtRhesus.Text);
-                cmd.Parameters.AddWithValue("@id", txtID.Text);
-
+                // Modul 10: Panggil SP INSERT dengan parameter input
+                SqlCommand cmd = new SqlCommand("sp_InsertKantongDarah", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@Gol_Darah", cmbGol.Text);
+                cmd.Parameters.AddWithValue("@Rhesus",    cmbRhesus.Text.Trim());
+                cmd.Parameters.AddWithValue("@ID_Unit",   1); // PMI = ID 1
                 cmd.ExecuteNonQuery();
 
-                MessageBox.Show("Data berhasil diupdate!");
+                MessageBox.Show("Data kantong darah berhasil disimpan!", "Sukses",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                btnTampil_Click(null, null);
+                BersihkanForm();
+                LoadDataStokViaAdapter();
+                UpdateTotalStok_SP();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Gagal update: " + ex.Message);
+                MessageBox.Show("Gagal simpan: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (conn.State == ConnectionState.Open) conn.Close();
             }
         }
 
+        // ============================================================
+        // TOMBOL UPDATE via Stored Procedure — Modul 10
+        // ============================================================
+        private void btnUpdate_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtID.Text))
+            {
+                MessageBox.Show("Pilih data dari tabel terlebih dahulu!", "Peringatan",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(cmbRhesus.Text))
+            {
+                MessageBox.Show("Field Rhesus tidak boleh kosong!", "Validasi Gagal",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            DialogResult konfirmasi = MessageBox.Show(
+                "Apakah Anda yakin ingin mengubah data kantong darah ini?",
+                "Konfirmasi Update", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (konfirmasi == DialogResult.No) return;
+
+            try
+            {
+                if (conn.State == ConnectionState.Closed) conn.Open();
+
+                // Modul 10: Panggil SP UPDATE
+                SqlCommand cmd = new SqlCommand("sp_UpdateKantongDarah", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@ID_Kantong", txtID.Text);
+                cmd.Parameters.AddWithValue("@Gol_Darah",  cmbGol.Text);
+                cmd.Parameters.AddWithValue("@Rhesus",     cmbRhesus.Text.Trim());
+                cmd.ExecuteNonQuery();
+
+                MessageBox.Show("Data berhasil diperbarui!", "Sukses",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                BersihkanForm();
+                LoadDataStokViaAdapter();
+                UpdateTotalStok_SP();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Gagal update: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (conn.State == ConnectionState.Open) conn.Close();
+            }
+        }
+
+        // ============================================================
+        // TOMBOL HAPUS via Stored Procedure — Modul 10
+        // ============================================================
+        private void btnHapus_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtID.Text))
+            {
+                MessageBox.Show("Pilih data dari tabel terlebih dahulu!", "Peringatan",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            DialogResult konfirmasi = MessageBox.Show(
+                "Apakah Anda yakin ingin menghapus data kantong darah ini?\nAksi ini tidak dapat dibatalkan.",
+                "Konfirmasi Hapus", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (konfirmasi == DialogResult.No) return;
+
+            try
+            {
+                if (conn.State == ConnectionState.Closed) conn.Open();
+
+                // Modul 10: Panggil SP DELETE
+                SqlCommand cmd = new SqlCommand("sp_DeleteKantongDarah", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@ID_Kantong", txtID.Text);
+                cmd.ExecuteNonQuery();
+
+                MessageBox.Show("Data berhasil dihapus!", "Sukses",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                BersihkanForm();
+                LoadDataStokViaAdapter();
+                UpdateTotalStok_SP();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Gagal hapus: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (conn.State == ConnectionState.Open) conn.Close();
+            }
+        }
+
+        // ============================================================
+        // TOMBOL CARI via Stored Procedure — Modul 10
+        // sp_CariStokDarah — SP SELECT dengan parameter input filter
+        // ============================================================
         private void btnCari_Click(object sender, EventArgs e)
         {
             try
             {
                 if (conn.State == ConnectionState.Closed) conn.Open();
-                string query = "SELECT * FROM Tabel_Kantong_Darah WHERE Gol_Darah LIKE @cari";
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@cari", "%" + txtCari.Text + "%");
 
-                SqlDataReader dr = cmd.ExecuteReader();
-                DataTable dt = new DataTable();
-                dt.Load(dr);
-                dgvDarah.DataSource = dt;
-                dr.Close();
+                // Modul 10: Panggil SP CARI dengan parameter filter
+                SqlCommand cmd = new SqlCommand("sp_CariStokDarah", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@Gol_Darah", cmbCariGol.Text);
+                cmd.Parameters.AddWithValue("@Rhesus",    cmbCariRhesus.Text);
+
+                SqlDataAdapter da = new SqlDataAdapter(cmd);
+
+                // Modul 8: Gunakan DataSet untuk menyimpan hasil pencarian
+                DataSet dsHasil = new DataSet();
+                da.Fill(dsHasil, "Hasil");
+
+                // Modul 8: Update BindingSource dengan data hasil pencarian
+                bsStok.DataSource = dsHasil.Tables["Hasil"];
+                dgvDarah.DataSource = bsStok;
+
+                lblStatus.Text = "Hasil Pencarian: " + dsHasil.Tables["Hasil"].Rows.Count + " data";
             }
-            catch (Exception ex) { MessageBox.Show("Gagal cari: " + ex.Message); }
-            finally { conn.Close(); }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Gagal mencari: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (conn.State == ConnectionState.Open) conn.Close();
+            }
         }
+
+        // ============================================================
+        // KLIK BARIS DI GRID STOK — auto-isi form input
+        // ============================================================
         private void dgvDarah_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0)
             {
                 DataGridViewRow row = dgvDarah.Rows[e.RowIndex];
+                txtID.Text     = row.Cells["ID_Kantong"].Value?.ToString();
+                cmbGol.Text    = row.Cells["Gol_Darah"].Value?.ToString();
+                cmbRhesus.Text = row.Cells["Rhesus"].Value?.ToString();
 
-                txtID.Text = row.Cells["ID_Kantong"].Value.ToString();
-                cmbGol.Text = row.Cells["Gol_Darah"].Value.ToString();
-                txtRhesus.Text = row.Cells["Rhesus"].Value.ToString();
+                string status = row.Cells["Status"].Value?.ToString();
+                if (status != "Tersedia")
+                {
+                    btnUpdate.Enabled   = false;
+                    btnHapus.Enabled    = false;
+                    btnUpdate.BackColor = System.Drawing.Color.LightGray;
+                    btnHapus.BackColor  = System.Drawing.Color.LightGray;
+                }
+                else
+                {
+                    btnUpdate.Enabled   = true;
+                    btnHapus.Enabled    = true;
+                    btnUpdate.BackColor = System.Drawing.Color.FromArgb(200, 120, 0);
+                    btnHapus.BackColor  = System.Drawing.Color.FromArgb(100, 100, 100);
+                }
             }
         }
 
+        // ============================================================
+        // TOMBOL PROSES REQUEST via Stored Procedure — Modul 10
+        // sp_ProsesRequest — SP dengan parameter INPUT + OUTPUT
+        // ============================================================
+        private void btnProses_Click(object sender, EventArgs e)
+        {
+            if (dgvRequestAdmin.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Pilih permintaan yang ingin diproses terlebih dahulu!", "Peringatan",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string idRequest      = dgvRequestAdmin.SelectedRows[0].Cells["ID_Request"].Value?.ToString();
+            string namaRS         = dgvRequestAdmin.SelectedRows[0].Cells["Nama Rumah Sakit"].Value?.ToString();
+            string golDarahLengkap = dgvRequestAdmin.SelectedRows[0].Cells["Golongan_Darah"].Value?.ToString();
+
+            DialogResult konfirmasi = MessageBox.Show(
+                $"Proses permintaan darah {golDarahLengkap} dari {namaRS}?",
+                "Konfirmasi Proses", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (konfirmasi == DialogResult.No) return;
+
+            try
+            {
+                if (conn.State == ConnectionState.Closed) conn.Open();
+
+                string gol = golDarahLengkap.Replace("+", "").Replace("-", "");
+                string rh  = golDarahLengkap.Contains("+") ? "+" : (golDarahLengkap.Contains("-") ? "-" : "");
+
+                // Modul 10: SP dengan OUTPUT parameter berupa BIT dan NVARCHAR
+                SqlCommand cmd = new SqlCommand("sp_ProsesRequest", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@ID_Request", idRequest);
+                cmd.Parameters.AddWithValue("@Gol_Darah",  gol);
+                cmd.Parameters.AddWithValue("@Rhesus",     rh);
+
+                SqlParameter pBerhasil = new SqlParameter("@Berhasil", SqlDbType.Bit);
+                pBerhasil.Direction = ParameterDirection.Output;
+                cmd.Parameters.Add(pBerhasil);
+
+                SqlParameter pPesan = new SqlParameter("@PesanHasil", SqlDbType.NVarChar, 200);
+                pPesan.Direction = ParameterDirection.Output;
+                cmd.Parameters.Add(pPesan);
+
+                cmd.ExecuteNonQuery();
+
+                bool berhasil   = (bool)cmd.Parameters["@Berhasil"].Value;
+                string pesan    = cmd.Parameters["@PesanHasil"].Value.ToString();
+
+                if (berhasil)
+                    MessageBox.Show(pesan + $"\n({golDarahLengkap} → {namaRS})", "Sukses",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                else
+                    MessageBox.Show(pesan, "Gagal Proses",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                TampilRequestMasuk_SP();
+                LoadDataStokViaAdapter();
+                UpdateTotalStok_SP();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Gagal memproses: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (conn.State == ConnectionState.Open) conn.Close();
+            }
+        }
+
+        // ============================================================
+        // MODUL 9: RESET DATA — Kembalikan data dari tabel backup
+        // Menggunakan SqlTransaction: jika restore gagal, DELETE dibatalkan (rollback)
+        // Menggunakan IDENTITY_INSERT ON agar ID asli bisa di-restore
+        // ============================================================
+        private void btnReset_Click(object sender, EventArgs e)
+        {
+            DialogResult konfirmasi = MessageBox.Show(
+                "⚠ PERHATIAN!\n\nFitur ini akan MENGHAPUS semua data stok darah saat ini\ndan mengembalikannya ke data backup awal.\n\nLanjutkan?",
+                "Konfirmasi Reset Data",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+            if (konfirmasi == DialogResult.No) return;
+
+            SqlTransaction transaksi = null;
+            try
+            {
+                if (conn.State == ConnectionState.Closed) conn.Open();
+
+                // Modul 9: Bungkus dalam transaksi — jika restore gagal, DELETE dibatalkan
+                transaksi = conn.BeginTransaction();
+
+                // Langkah 1: Hapus semua data aktif
+                SqlCommand cmdHapus = new SqlCommand(
+                    "DELETE FROM Tabel_Kantong_Darah", conn, transaksi);
+                cmdHapus.ExecuteNonQuery();
+
+                // Langkah 2: Aktifkan IDENTITY_INSERT agar ID asli bisa di-restore
+                SqlCommand cmdIdentOn = new SqlCommand(
+                    "SET IDENTITY_INSERT Tabel_Kantong_Darah ON", conn, transaksi);
+                cmdIdentOn.ExecuteNonQuery();
+
+                // Langkah 3: Restore dari backup dengan kolom eksplisit (tanpa SELECT *)
+                SqlCommand cmdRestore = new SqlCommand(@"
+                    INSERT INTO Tabel_Kantong_Darah 
+                        (ID_Kantong, Gol_Darah, Rhesus, Tgl_Kadaluwarsa, Status, ID_Unit)
+                    SELECT 
+                        ID_Kantong, Gol_Darah, Rhesus, Tgl_Kadaluwarsa, Status, ID_Unit
+                    FROM Backup_Kantong_Darah", conn, transaksi);
+                cmdRestore.ExecuteNonQuery();
+
+                // Langkah 4: Matikan kembali IDENTITY_INSERT
+                SqlCommand cmdIdentOff = new SqlCommand(
+                    "SET IDENTITY_INSERT Tabel_Kantong_Darah OFF", conn, transaksi);
+                cmdIdentOff.ExecuteNonQuery();
+
+                // Semua berhasil → commit transaksi
+                transaksi.Commit();
+
+                MessageBox.Show("Data berhasil direset ke kondisi backup awal!", "Reset Berhasil",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                LoadDataStokViaAdapter();
+                UpdateTotalStok_SP();
+            }
+            catch (Exception ex)
+            {
+                // Jika ada error → rollback — data TIDAK jadi terhapus
+                try { transaksi?.Rollback(); } catch { }
+
+                MessageBox.Show(
+                    "Gagal reset data (semua perubahan dibatalkan):\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (conn.State == ConnectionState.Open) conn.Close();
+            }
+        }
+
+        // ============================================================
+        // MODUL 9: SIMULASI SQL INJECTION — Demo query TIDAK aman
+        // Tujuan: menunjukkan bahaya query string concatenation
+        // ============================================================
+        private void btnTestInjection_Click(object sender, EventArgs e)
+        {
+            string inputUji = txtID.Text.Trim();
+            if (string.IsNullOrEmpty(inputUji))
+            {
+                MessageBox.Show("Isi txtID dengan nilai uji, contoh:\n' OR 1=1 --\n\nLalu klik tombol ini.",
+                    "Petunjuk SQL Injection Demo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                if (conn.State == ConnectionState.Closed) conn.Open();
+
+                // Modul 9: Query TIDAK AMAN — rentan SQL Injection (untuk demonstrasi saja!)
+                string queryTidakAman = "SELECT * FROM Tabel_Kantong_Darah WHERE ID_Kantong = " + inputUji;
+
+                SqlCommand cmd = new SqlCommand(queryTidakAman, conn);
+                SqlDataAdapter da = new SqlDataAdapter(cmd);
+                DataTable dt = new DataTable();
+                da.Fill(dt);
+
+                dgvDarah.DataSource = dt;
+                lblStatus.Text = $"[INJECTION DEMO] Baris terpanggil: {dt.Rows.Count} (INPUT: {inputUji})";
+
+                MessageBox.Show(
+                    $"⚠ HASIL QUERY TIDAK AMAN:\n\nQuery dieksekusi:\n{queryTidakAman}\n\n" +
+                    $"Baris yang tampil: {dt.Rows.Count}\n\n" +
+                    "Gunakan Parameterized Query untuk mencegah ini!",
+                    "SQL Injection Demo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error (mungkin injeksi menyebabkan syntax error): " + ex.Message,
+                    "SQL Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (conn.State == ConnectionState.Open) conn.Close();
+            }
+        }
+
+        // ============================================================
+        // TOMBOL LOGOUT
+        // ============================================================
         private void btnLogout_Click(object sender, EventArgs e)
         {
             DialogResult konfirmasi = MessageBox.Show(
@@ -202,249 +572,23 @@ namespace HemoScan
 
             if (konfirmasi == DialogResult.Yes)
             {
-                if (conn.State == ConnectionState.Open)
-                    conn.Close();
-                this.Close(); // Ini akan trigger FormClosed → Login muncul kembali
-            }
-        }
-
-        // Fungsi untuk menarik data dari Tabel_Request ke DataGridView Admin
-        // Fungsi untuk menarik data dari Tabel_Request ke DataGridView Admin
-        private void TampilRequestMasuk()
-        {
-            try
-            {
-                if (conn.State == ConnectionState.Closed) conn.Open();
-
-                // Mengambil data yang statusnya 'Pending' dari database
-                string query = "SELECT * FROM Tabel_Request WHERE Status_Permintaan = 'Pending'";
-                SqlDataAdapter da = new SqlDataAdapter(query, conn);
-                DataTable dt = new DataTable();
-                da.Fill(dt);
-
-                // Menampilkan data ke GridView kanan
-                dgvRequestAdmin.DataSource = dt;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Gagal memuat data request: " + ex.Message);
-            }
-            finally { conn.Close(); }
-        }
-        
-
-        private void btnProses_Click(object sender, EventArgs e)
-        {
-            if (dgvRequestAdmin.SelectedRows.Count > 0)
-            {
-                // Ambil ID_Request dari baris yang dipilih di Grid
-                string idRequest = dgvRequestAdmin.SelectedRows[0].Cells["ID_Request"].Value.ToString();
-
-                try
-                {
-                    if (conn.State == ConnectionState.Closed) conn.Open();
-
-                    // Update status di database
-                    string query = "UPDATE Tabel_Request SET Status_Permintaan = 'Dikirim' WHERE ID_Request = @id";
-                    SqlCommand cmd = new SqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@id", idRequest);
-                    cmd.ExecuteNonQuery();
-
-                    MessageBox.Show("Status berhasil diperbarui! Darah siap dikirim ke Rumah Sakit.", "Sukses");
-
-                    // Refresh tabel agar data yang sudah diproses hilang dari daftar 'Pending'
-                    TampilRequestMasuk();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Gagal memproses: " + ex.Message);
-                }
-                finally
-                {
-                    conn.Close();
-                }
-            }
-            else
-            {
-                MessageBox.Show("Pilih permintaan yang ingin diproses terlebih dahulu!");
-            }
-        }
-
-
-        private void FormAdminPMI_Load(object sender, EventArgs e)
-        {
-            try
-            {
-                // 1. Pastikan koneksi bersih
                 if (conn.State == ConnectionState.Open) conn.Close();
-                conn.Open();
-
-                // 2. Setup ComboBox (Hanya jika belum ada isinya)
-                if (cmbGol.Items.Count == 0)
-                {
-                    cmbGol.Items.AddRange(new string[] { "A", "B", "AB", "O" });
-                    cmbGol.SelectedIndex = 0;
-                }
-
-                // 3. Panggil data (Urutan dibalik untuk memastikan Request prioritas)
-                TampilRequestMasuk();
-
-                // Memanggil fungsi stok (Pastikan fungsi ini juga menggunakan koneksi dengan benar)
-                TampilDataStok();
-
-                // Update Label total stok
-                UpdateTotalStok();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Terjadi kesalahan saat memuat form: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                // Jangan lupa tutup koneksi agar tidak membengkak di memory
-                if (conn.State == ConnectionState.Open) conn.Close();
+                this.Close();
             }
         }
 
-        private void UpdateTotalStok()
+        // ============================================================
+        // FUNGSI PEMBANTU: Bersihkan field input
+        // ============================================================
+        private void BersihkanForm()
         {
-            try
-            {
-                if (conn.State == ConnectionState.Closed) conn.Open();
-                string countQuery = "SELECT COUNT(*) FROM Tabel_Kantong_Darah";
-                SqlCommand cmdCount = new SqlCommand(countQuery, conn);
-                int total = Convert.ToInt32(cmdCount.ExecuteScalar());
-                lblStatus.Text = "Total Stok Kantong: " + total;
-            }
-            catch { /* Biarkan kosong agar tidak mengganggu load */ }
-            finally { conn.Close(); }
-        }
-
-        // Fungsi pembantu agar kode Load di atas tetap rapi
-        private void TampilDataStok()
-        {
-            try
-            {
-                if (conn.State == ConnectionState.Closed) conn.Open();
-                string query = "SELECT * FROM Tabel_Kantong_Darah";
-                SqlDataAdapter da = new SqlDataAdapter(query, conn);
-                DataTable dt = new DataTable();
-                da.Fill(dt);
-                dgvDarah.DataSource = dt;
-            }
-            catch { /* biarkan kosong jika tidak ingin popup terus */ }
-        }
-
-
-        // Panggil fungsi di bawah ini saat form loading
-
-
-
-        private void label1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label1_Click_1(object sender, EventArgs e)
-        {
-
-        }
-
-        private void textBox2_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label3_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label2_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label1_Click_2(object sender, EventArgs e)
-        {
-
-        }
-
-        private void textBox4_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void Form1_Load(object sender, EventArgs e)
-        {
-            try
-            {
-                conn.Open();
-                MessageBox.Show("Koneksi Database HemoScan Berhasil!", "Status");
-                conn.Close();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Koneksi Gagal: " + ex.Message);
-            }
-            cmbGol.Items.AddRange(new string[] { "A", "B", "AB", "O" });
-            cmbGol.SelectedIndex = 0;
-        }
-
-        private void button2_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void dataGridView1_CellContentClick(object sender, DataGridViewCellEventArgs e)
-        {
-            // Cek apakah yang diklik bukan header (baris judul)
-            if (e.RowIndex >= 0)
-            {
-                // Ambil data dari baris yang diklik
-                DataGridViewRow row = dgvRequestAdmin.Rows[e.RowIndex];
-
-                // Contoh: Menampilkan ID_Request ke sebuah TextBox (jika ada txtIDRequest)
-                // txtIDRequest.Text = row.Cells["ID_Request"].Value.ToString();
-
-                // Atau kamu bisa langsung memberikan konfirmasi proses di sini
-                DialogResult dialog = MessageBox.Show("Apakah Anda ingin memproses permintaan ini?",
-                    "Konfirmasi", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-                if (dialog == DialogResult.Yes)
-                {
-                    // Ambil ID dari kolom "ID_Request"
-                    string idReq = row.Cells["ID_Request"].Value.ToString();
-                    ProsesDarah(idReq); // Memanggil fungsi proses (logika UPDATE status)
-                }
-            }
-        }
-
-
-
-        // Fungsi tambahan untuk memproses (biar kode di atas tidak kepanjangan)
-        private void ProsesDarah(string id)
-        {
-            try
-            {
-                if (conn.State == ConnectionState.Closed) conn.Open();
-                string query = "UPDATE Tabel_Request SET Status_Permintaan = 'Dikirim' WHERE ID_Request = @id";
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@id", id);
-                cmd.ExecuteNonQuery();
-
-                MessageBox.Show("Permintaan Berhasil Diproses!");
-                TampilRequestMasuk(); // Refresh tabel setelah update
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error saat proses: " + ex.Message);
-            }
-            finally
-            {
-                conn.Close();
-            }
+            txtID.Clear();
+            cmbRhesus.SelectedIndex = -1;
+            cmbGol.SelectedIndex    = 0;
+            btnUpdate.Enabled       = true;
+            btnHapus.Enabled        = true;
+            btnUpdate.BackColor     = System.Drawing.Color.FromArgb(200, 120, 0);
+            btnHapus.BackColor      = System.Drawing.Color.FromArgb(100, 100, 100);
         }
     }
 }
-
