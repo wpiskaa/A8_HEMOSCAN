@@ -4,7 +4,8 @@
 --   Modul 8  : DataSet & DataAdapter
 --   Modul 9  : Advanced Database Security (VIEW)
 --   Modul 10 : Stored Procedures
--- Jalankan script ini di SSMS sebelum menjalankan aplikasi
+-- Sesuai dengan Database Diagram SSMS (Tabel_Request, Username PK)
+-- Jalankan script ini di SSMS setelah query_hemoscan.sql
 -- ============================================================
 
 USE HEMOSCAN;
@@ -12,8 +13,6 @@ GO
 
 -- ============================================================
 -- MODUL 9: MEMBUAT VIEW (Keamanan Data)
--- Tujuan: Membatasi kolom yang boleh tampil ke client
---         sehingga data sensitif tidak bocor
 -- ============================================================
 
 -- VIEW stok darah publik (tanpa kolom sensitif)
@@ -131,12 +130,17 @@ GO
 CREATE PROCEDURE sp_InsertKantongDarah
     @Gol_Darah NVARCHAR(5),
     @Rhesus    NVARCHAR(2),
-    @ID_Unit   INT
+    @ID_Unit   INT,
+    @Tgl_Kadaluwarsa DATETIME = NULL,
+    @Status    NVARCHAR(20) = 'Tersedia'
 AS
 BEGIN
     SET NOCOUNT ON;
+    IF @Tgl_Kadaluwarsa IS NULL
+        SET @Tgl_Kadaluwarsa = DATEADD(DAY, 35, GETDATE());
+
     INSERT INTO Tabel_Kantong_Darah (Gol_Darah, Rhesus, Tgl_Kadaluwarsa, Status, ID_Unit)
-    VALUES (@Gol_Darah, @Rhesus, DATEADD(DAY, 35, GETDATE()), 'Tersedia', @ID_Unit);
+    VALUES (@Gol_Darah, @Rhesus, @Tgl_Kadaluwarsa, @Status, @ID_Unit);
 END;
 GO
 
@@ -255,7 +259,7 @@ IF OBJECT_ID('sp_InsertRequest', 'P') IS NOT NULL
 GO
 
 CREATE PROCEDURE sp_InsertRequest
-    @Golongan_Darah NVARCHAR(10),
+    @Golongan_Darah  NVARCHAR(10),
     @ID_Unit_Peminta INT
 AS
 BEGIN
@@ -310,10 +314,8 @@ GO
 
 -- ============================================================
 -- MODUL 9: BACKUP TABLE (untuk fitur Reset Data)
--- Buat sekali saja sebelum demo
 -- ============================================================
 
--- Buat backup tabel stok darah jika belum ada
 IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Backup_Kantong_Darah')
 BEGIN
     SELECT * INTO Backup_Kantong_Darah FROM Tabel_Kantong_Darah;
@@ -325,10 +327,72 @@ BEGIN
 END
 GO
 
+-- ============================================================
+-- MODUL 11 / UCP 3: FITUR AUDIT LOG & TRIGGER
+-- ============================================================
+
+IF OBJECT_ID('Tabel_Log_Aktivitas', 'U') IS NOT NULL
+    DROP TABLE Tabel_Log_Aktivitas;
+GO
+
+CREATE TABLE Tabel_Log_Aktivitas (
+    ID_Log INT IDENTITY(1,1) PRIMARY KEY,
+    Waktu DATETIME DEFAULT GETDATE(),
+    Aktivitas NVARCHAR(100) NOT NULL,
+    Detail NVARCHAR(500) NOT NULL,
+    Pengguna VARCHAR(50) DEFAULT SUSER_SNAME()
+);
+GO
+
+IF OBJECT_ID('trg_LogInsertKantongDarah', 'TR') IS NOT NULL
+    DROP TRIGGER trg_LogInsertKantongDarah;
+GO
+
+CREATE TRIGGER trg_LogInsertKantongDarah
+ON Tabel_Kantong_Darah
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO Tabel_Log_Aktivitas (Aktivitas, Detail)
+    SELECT 'INSERT KANTONG', 'Menambahkan kantong darah baru ID: ' + CAST(ID_Kantong AS VARCHAR(10)) + 
+                             ', Golongan Darah: ' + Gol_Darah + Rhesus + 
+                             ', Status: ' + Status + 
+                             ', Unit ID: ' + CAST(ID_Unit AS VARCHAR(10))
+    FROM inserted;
+END;
+GO
+
+IF OBJECT_ID('trg_LogProsesRequest', 'TR') IS NOT NULL
+    DROP TRIGGER trg_LogProsesRequest;
+GO
+
+CREATE TRIGGER trg_LogProsesRequest
+ON Tabel_Request
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    -- Hanya catat jika status berubah menjadi 'Dikirim'
+    IF UPDATE(Status_Permintaan)
+    BEGIN
+        INSERT INTO Tabel_Log_Aktivitas (Aktivitas, Detail)
+        SELECT 'PROSES REQUEST', 'Permintaan darah ID: ' + CAST(i.ID_Request AS VARCHAR(10)) + 
+                                 ' untuk Golongan Darah: ' + i.Golongan_Darah + 
+                                 ' statusnya diubah dari ' + d.Status_Permintaan + 
+                                 ' menjadi ' + i.Status_Permintaan
+        FROM inserted i
+        INNER JOIN deleted d ON i.ID_Request = d.ID_Request
+        WHERE i.Status_Permintaan = 'Dikirim' AND d.Status_Permintaan = 'Pending';
+    END;
+END;
+GO
+
 PRINT '============================================================';
 PRINT 'SETUP HEMOSCAN SELESAI:';
 PRINT '  3 VIEW telah dibuat (vw_StokDarahPublik, vw_LaporanPermintaan, vw_RequestPending)';
 PRINT '  11 Stored Procedures telah dibuat';
 PRINT '  1 Backup Table disiapkan untuk fitur Reset Data';
+PRINT '  1 Tabel Audit Log dan 2 Trigger telah dikonfigurasi';
 PRINT '============================================================';
 GO

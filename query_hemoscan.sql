@@ -1,6 +1,7 @@
 -- ============================================================
 -- HEMOSCAN - Script Database Lengkap
 -- Dengan Foreign Key dan Relasi Tabel yang Benar
+-- Sesuai dengan Database Diagram SSMS
 -- ============================================================
 
 -- Buat Database
@@ -42,7 +43,8 @@ GO
 
 -- ============================================================
 -- TABEL 3: Tabel_User
--- Menyimpan akun login. Role berisi: adminPMI, stafRS, Manajer
+-- Menyimpan akun login. PK = Username.
+-- Role berisi: adminPMI, stafRS, Manajer
 -- ============================================================
 CREATE TABLE Tabel_User (
     Username    VARCHAR(50) PRIMARY KEY,
@@ -110,6 +112,7 @@ GO
 -- ============================================================
 -- VERIFIKASI: Query JOIN untuk mengecek relasi sudah benar
 -- ============================================================
+
 -- Cek relasi Kantong Darah dengan Nama Unit PMI:
 SELECT K.ID_Kantong, K.Gol_Darah, K.Rhesus, K.Status, U.Nama_Unit
 FROM Tabel_Kantong_Darah K

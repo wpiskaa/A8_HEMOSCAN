@@ -24,13 +24,14 @@ namespace HemoScan
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.btnLogin = new System.Windows.Forms.Button();
             this.lblCopyright = new System.Windows.Forms.Label();
+            this.lnkServerSettings = new System.Windows.Forms.LinkLabel();
             this.pnlHeader.SuspendLayout();
             this.pnlCard.SuspendLayout();
             this.SuspendLayout();
             // 
             // pnlHeader
             // 
-            this.pnlHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(192)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            this.pnlHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(170)))), ((int)(((byte)(0)))), ((int)(((byte)(30)))));
             this.pnlHeader.Controls.Add(this.lblLogo);
             this.pnlHeader.Controls.Add(this.lblSubtitle);
             this.pnlHeader.Location = new System.Drawing.Point(0, 0);
@@ -130,7 +131,7 @@ namespace HemoScan
             // 
             // btnLogin
             // 
-            this.btnLogin.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(192)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            this.btnLogin.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(170)))), ((int)(((byte)(0)))), ((int)(((byte)(30)))));
             this.btnLogin.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnLogin.FlatAppearance.BorderSize = 0;
             this.btnLogin.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -148,7 +149,7 @@ namespace HemoScan
             // 
             this.lblCopyright.Font = new System.Drawing.Font("Segoe UI", 8F);
             this.lblCopyright.ForeColor = System.Drawing.Color.Gray;
-            this.lblCopyright.Location = new System.Drawing.Point(0, 468);
+            this.lblCopyright.Location = new System.Drawing.Point(0, 490);
             this.lblCopyright.Name = "lblCopyright";
             this.lblCopyright.Size = new System.Drawing.Size(420, 20);
             this.lblCopyright.TabIndex = 2;
@@ -156,12 +157,26 @@ namespace HemoScan
             this.lblCopyright.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.lblCopyright.Click += new System.EventHandler(this.lblCopyright_Click);
             // 
+            // lnkServerSettings
+            // 
+            this.lnkServerSettings.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.lnkServerSettings.LinkColor = System.Drawing.Color.FromArgb(((int)(((byte)(170)))), ((int)(((byte)(0)))), ((int)(((byte)(30)))));
+            this.lnkServerSettings.Location = new System.Drawing.Point(30, 460);
+            this.lnkServerSettings.Name = "lnkServerSettings";
+            this.lnkServerSettings.Size = new System.Drawing.Size(360, 20);
+            this.lnkServerSettings.TabIndex = 6;
+            this.lnkServerSettings.TabStop = true;
+            this.lnkServerSettings.Text = "⚙️ Pengaturan Server Database";
+            this.lnkServerSettings.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.lnkServerSettings.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.lnkServerSettings_LinkClicked);
+            // 
             // FormLogin
             // 
-            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(245)))), ((int)(((byte)(245)))), ((int)(((byte)(248)))));
-            this.ClientSize = new System.Drawing.Size(420, 500);
+            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(240)))), ((int)(((byte)(244)))), ((int)(((byte)(248)))));
+            this.ClientSize = new System.Drawing.Size(420, 520);
             this.Controls.Add(this.pnlHeader);
             this.Controls.Add(this.pnlCard);
+            this.Controls.Add(this.lnkServerSettings);
             this.Controls.Add(this.lblCopyright);
             this.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
@@ -188,5 +203,6 @@ namespace HemoScan
         private System.Windows.Forms.TextBox   txtPassword;
         private System.Windows.Forms.Button    btnLogin;
         private System.Windows.Forms.Label     lblCopyright;
+        private System.Windows.Forms.LinkLabel lnkServerSettings;
     }
 }

@@ -39,28 +39,30 @@ namespace HemoScan
             this.btnTampli = new System.Windows.Forms.Button();
             this.btnReset = new System.Windows.Forms.Button();
             this.btnTestInjection = new System.Windows.Forms.Button();
+            this.btnImportExcel = new System.Windows.Forms.Button();
+            this.btnTemplateExcel = new System.Windows.Forms.Button();
             this.pnlStok = new System.Windows.Forms.Panel();
             this.lblPanelStok = new System.Windows.Forms.Label();
             this.lblStatus = new System.Windows.Forms.Label();
+            this.bindingNavigatorStok = new System.Windows.Forms.BindingNavigator(this.components);
             this.dgvDarah = new System.Windows.Forms.DataGridView();
             this.pnlRequest = new System.Windows.Forms.Panel();
             this.lblPanelReq = new System.Windows.Forms.Label();
             this.dgvRequestAdmin = new System.Windows.Forms.DataGridView();
             this.btnProses = new System.Windows.Forms.Button();
-            this.bindingNavigatorStok = new System.Windows.Forms.BindingNavigator(this.components);
             this.pnlHeader.SuspendLayout();
             this.pnlSearch.SuspendLayout();
             this.pnlInput.SuspendLayout();
             this.pnlStok.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.bindingNavigatorStok)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvDarah)).BeginInit();
             this.pnlRequest.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvRequestAdmin)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.bindingNavigatorStok)).BeginInit();
             this.SuspendLayout();
             // 
             // pnlHeader
             // 
-            this.pnlHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(192)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            this.pnlHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(170)))), ((int)(((byte)(0)))), ((int)(((byte)(30)))));
             this.pnlHeader.Controls.Add(this.lblAppName);
             this.pnlHeader.Controls.Add(this.lblPageTitle);
             this.pnlHeader.Controls.Add(this.btnLogout);
@@ -94,7 +96,7 @@ namespace HemoScan
             // 
             // btnLogout
             // 
-            this.btnLogout.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            this.btnLogout.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(0)))), ((int)(((byte)(20)))));
             this.btnLogout.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnLogout.FlatAppearance.BorderSize = 0;
             this.btnLogout.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -116,6 +118,8 @@ namespace HemoScan
             this.pnlSearch.Controls.Add(this.cmbCariGol);
             this.pnlSearch.Controls.Add(this.cmbCariRhesus);
             this.pnlSearch.Controls.Add(this.btnCari);
+            this.pnlSearch.Controls.Add(this.btnImportExcel);
+            this.pnlSearch.Controls.Add(this.btnTemplateExcel);
             this.pnlSearch.Location = new System.Drawing.Point(12, 72);
             this.pnlSearch.Name = "pnlSearch";
             this.pnlSearch.Size = new System.Drawing.Size(976, 54);
@@ -151,9 +155,10 @@ namespace HemoScan
             this.cmbCariRhesus.Size = new System.Drawing.Size(110, 33);
             this.cmbCariRhesus.TabIndex = 2;
             // 
+            // 
             // btnCari
             // 
-            this.btnCari.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(192)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            this.btnCari.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(116)))), ((int)(((byte)(188)))));
             this.btnCari.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnCari.FlatAppearance.BorderSize = 0;
             this.btnCari.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -166,6 +171,38 @@ namespace HemoScan
             this.btnCari.Text = "Cari";
             this.btnCari.UseVisualStyleBackColor = false;
             this.btnCari.Click += new System.EventHandler(this.btnCari_Click);
+            // 
+            // btnImportExcel
+            // 
+            this.btnImportExcel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(150)))), ((int)(((byte)(80)))));
+            this.btnImportExcel.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.btnImportExcel.FlatAppearance.BorderSize = 0;
+            this.btnImportExcel.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnImportExcel.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnImportExcel.ForeColor = System.Drawing.Color.White;
+            this.btnImportExcel.Location = new System.Drawing.Point(680, 11);
+            this.btnImportExcel.Name = "btnImportExcel";
+            this.btnImportExcel.Size = new System.Drawing.Size(130, 30);
+            this.btnImportExcel.TabIndex = 4;
+            this.btnImportExcel.Text = "📥 Import Excel";
+            this.btnImportExcel.UseVisualStyleBackColor = false;
+            this.btnImportExcel.Click += new System.EventHandler(this.btnImportExcel_Click);
+            // 
+            // btnTemplateExcel
+            // 
+            this.btnTemplateExcel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(90)))), ((int)(((byte)(100)))), ((int)(((byte)(110)))));
+            this.btnTemplateExcel.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.btnTemplateExcel.FlatAppearance.BorderSize = 0;
+            this.btnTemplateExcel.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnTemplateExcel.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnTemplateExcel.ForeColor = System.Drawing.Color.White;
+            this.btnTemplateExcel.Location = new System.Drawing.Point(820, 11);
+            this.btnTemplateExcel.Name = "btnTemplateExcel";
+            this.btnTemplateExcel.Size = new System.Drawing.Size(140, 30);
+            this.btnTemplateExcel.TabIndex = 5;
+            this.btnTemplateExcel.Text = "📋 Unduh Template";
+            this.btnTemplateExcel.UseVisualStyleBackColor = false;
+            this.btnTemplateExcel.Click += new System.EventHandler(this.btnTemplateExcel_Click);
             // 
             // pnlInput
             // 
@@ -191,7 +228,7 @@ namespace HemoScan
             // 
             // lblPanelInput
             // 
-            this.lblPanelInput.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(192)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            this.lblPanelInput.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(73)))), ((int)(((byte)(94)))));
             this.lblPanelInput.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.lblPanelInput.ForeColor = System.Drawing.Color.White;
             this.lblPanelInput.Location = new System.Drawing.Point(0, 0);
@@ -261,7 +298,7 @@ namespace HemoScan
             // 
             // btnSimpan
             // 
-            this.btnSimpan.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(192)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            this.btnSimpan.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(170)))), ((int)(((byte)(0)))), ((int)(((byte)(30)))));
             this.btnSimpan.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnSimpan.FlatAppearance.BorderSize = 0;
             this.btnSimpan.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -277,7 +314,7 @@ namespace HemoScan
             // 
             // btnUpdate
             // 
-            this.btnUpdate.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(200)))), ((int)(((byte)(120)))), ((int)(((byte)(0)))));
+            this.btnUpdate.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(116)))), ((int)(((byte)(188)))));
             this.btnUpdate.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnUpdate.FlatAppearance.BorderSize = 0;
             this.btnUpdate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -293,7 +330,7 @@ namespace HemoScan
             // 
             // btnHapus
             // 
-            this.btnHapus.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(100)))), ((int)(((byte)(100)))));
+            this.btnHapus.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(110)))), ((int)(((byte)(120)))), ((int)(((byte)(130)))));
             this.btnHapus.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnHapus.FlatAppearance.BorderSize = 0;
             this.btnHapus.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -309,7 +346,7 @@ namespace HemoScan
             // 
             // btnTampli
             // 
-            this.btnTampli.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(120)))), ((int)(((byte)(80)))));
+            this.btnTampli.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(110)))), ((int)(((byte)(120)))), ((int)(((byte)(130)))));
             this.btnTampli.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnTampli.FlatAppearance.BorderSize = 0;
             this.btnTampli.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -325,7 +362,7 @@ namespace HemoScan
             // 
             // btnReset
             // 
-            this.btnReset.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(139)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            this.btnReset.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(110)))), ((int)(((byte)(120)))), ((int)(((byte)(130)))));
             this.btnReset.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnReset.FlatAppearance.BorderSize = 0;
             this.btnReset.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -361,15 +398,16 @@ namespace HemoScan
             this.pnlStok.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.pnlStok.Controls.Add(this.lblPanelStok);
             this.pnlStok.Controls.Add(this.lblStatus);
+            this.pnlStok.Controls.Add(this.bindingNavigatorStok);
             this.pnlStok.Controls.Add(this.dgvDarah);
             this.pnlStok.Location = new System.Drawing.Point(12, 383);
             this.pnlStok.Name = "pnlStok";
-            this.pnlStok.Size = new System.Drawing.Size(976, 267);
+            this.pnlStok.Size = new System.Drawing.Size(976, 285);
             this.pnlStok.TabIndex = 4;
             // 
             // lblPanelStok
             // 
-            this.lblPanelStok.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(80)))), ((int)(((byte)(80)))), ((int)(((byte)(80)))));
+            this.lblPanelStok.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(73)))), ((int)(((byte)(94)))));
             this.lblPanelStok.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.lblPanelStok.ForeColor = System.Drawing.Color.White;
             this.lblPanelStok.Location = new System.Drawing.Point(0, 0);
@@ -390,13 +428,24 @@ namespace HemoScan
             this.lblStatus.Text = "Total Stok Kantong : 0";
             this.lblStatus.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
+            // bindingNavigatorStok
+            // 
+            this.bindingNavigatorStok.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(73)))), ((int)(((byte)(94)))));
+            this.bindingNavigatorStok.Dock = System.Windows.Forms.DockStyle.None;
+            this.bindingNavigatorStok.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.bindingNavigatorStok.Location = new System.Drawing.Point(0, 52);
+            this.bindingNavigatorStok.Name = "bindingNavigatorStok";
+            this.bindingNavigatorStok.Size = new System.Drawing.Size(348, 38);
+            this.bindingNavigatorStok.TabIndex = 5;
+            this.bindingNavigatorStok.Text = "Navigasi Stok Darah";
+            // 
             // dgvDarah
             // 
             this.dgvDarah.AllowUserToAddRows = false;
             this.dgvDarah.BackgroundColor = System.Drawing.Color.White;
             this.dgvDarah.BorderStyle = System.Windows.Forms.BorderStyle.None;
             dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(192)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            dataGridViewCellStyle1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(170)))), ((int)(((byte)(0)))), ((int)(((byte)(30)))));
             dataGridViewCellStyle1.Font = new System.Drawing.Font("Segoe UI", 9F);
             dataGridViewCellStyle1.ForeColor = System.Drawing.Color.White;
             dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
@@ -405,13 +454,13 @@ namespace HemoScan
             this.dgvDarah.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
             this.dgvDarah.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dgvDarah.EnableHeadersVisualStyles = false;
-            this.dgvDarah.Location = new System.Drawing.Point(-1, 56);
+            this.dgvDarah.Location = new System.Drawing.Point(-1, 81);
             this.dgvDarah.Name = "dgvDarah";
             this.dgvDarah.ReadOnly = true;
             this.dgvDarah.RowHeadersWidth = 62;
             this.dgvDarah.RowTemplate.Height = 28;
             this.dgvDarah.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dgvDarah.Size = new System.Drawing.Size(960, 210);
+            this.dgvDarah.Size = new System.Drawing.Size(960, 203);
             this.dgvDarah.TabIndex = 2;
             this.dgvDarah.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvDarah_CellClick);
             // 
@@ -429,7 +478,7 @@ namespace HemoScan
             // 
             // lblPanelReq
             // 
-            this.lblPanelReq.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(160)))), ((int)(((byte)(80)))), ((int)(((byte)(0)))));
+            this.lblPanelReq.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(230)))), ((int)(((byte)(95)))), ((int)(((byte)(0)))));
             this.lblPanelReq.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.lblPanelReq.ForeColor = System.Drawing.Color.White;
             this.lblPanelReq.Location = new System.Drawing.Point(0, 0);
@@ -445,7 +494,7 @@ namespace HemoScan
             this.dgvRequestAdmin.BackgroundColor = System.Drawing.Color.White;
             this.dgvRequestAdmin.BorderStyle = System.Windows.Forms.BorderStyle.None;
             dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(160)))), ((int)(((byte)(80)))), ((int)(((byte)(0)))));
+            dataGridViewCellStyle2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(230)))), ((int)(((byte)(95)))), ((int)(((byte)(0)))));
             dataGridViewCellStyle2.Font = new System.Drawing.Font("Segoe UI", 9F);
             dataGridViewCellStyle2.ForeColor = System.Drawing.Color.White;
             dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
@@ -465,7 +514,7 @@ namespace HemoScan
             // 
             // btnProses
             // 
-            this.btnProses.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(160)))), ((int)(((byte)(80)))), ((int)(((byte)(0)))));
+            this.btnProses.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(150)))), ((int)(((byte)(80)))));
             this.btnProses.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnProses.FlatAppearance.BorderSize = 0;
             this.btnProses.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -479,26 +528,10 @@ namespace HemoScan
             this.btnProses.UseVisualStyleBackColor = false;
             this.btnProses.Click += new System.EventHandler(this.btnProses_Click);
             // 
-            // bindingNavigatorStok
-            // 
-            this.bindingNavigatorStok.AddNewItem = null;
-            this.bindingNavigatorStok.CountItem = null;
-            this.bindingNavigatorStok.DeleteItem = null;
-            this.bindingNavigatorStok.ImageScalingSize = new System.Drawing.Size(24, 24);
-            this.bindingNavigatorStok.Location = new System.Drawing.Point(0, 0);
-            this.bindingNavigatorStok.MoveFirstItem = null;
-            this.bindingNavigatorStok.MoveLastItem = null;
-            this.bindingNavigatorStok.MoveNextItem = null;
-            this.bindingNavigatorStok.MovePreviousItem = null;
-            this.bindingNavigatorStok.Name = "bindingNavigatorStok";
-            this.bindingNavigatorStok.PositionItem = null;
-            this.bindingNavigatorStok.Size = new System.Drawing.Size(100, 25);
-            this.bindingNavigatorStok.TabIndex = 0;
-            // 
             // FormAdminPMI
             // 
-            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(245)))), ((int)(((byte)(245)))), ((int)(((byte)(248)))));
-            this.ClientSize = new System.Drawing.Size(1000, 680);
+            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(240)))), ((int)(((byte)(244)))), ((int)(((byte)(248)))));
+            this.ClientSize = new System.Drawing.Size(1000, 700);
             this.Controls.Add(this.pnlHeader);
             this.Controls.Add(this.pnlSearch);
             this.Controls.Add(this.pnlInput);
@@ -515,10 +548,11 @@ namespace HemoScan
             this.pnlInput.ResumeLayout(false);
             this.pnlInput.PerformLayout();
             this.pnlStok.ResumeLayout(false);
+            this.pnlStok.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.bindingNavigatorStok)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvDarah)).EndInit();
             this.pnlRequest.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dgvRequestAdmin)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.bindingNavigatorStok)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -556,6 +590,8 @@ namespace HemoScan
         private System.Windows.Forms.Label            lblPanelReq;
         private System.Windows.Forms.DataGridView     dgvRequestAdmin;
         private System.Windows.Forms.Button           btnProses;
+        private System.Windows.Forms.Button           btnImportExcel;
+        private System.Windows.Forms.Button           btnTemplateExcel;
         // Legacy
         private System.Windows.Forms.GroupBox groupBox1 = new System.Windows.Forms.GroupBox();
         private System.Windows.Forms.GroupBox grpInput  = new System.Windows.Forms.GroupBox();
